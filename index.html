@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluador Interactivo de Python - Dosis Pediátricas (Avanzado)</title>
+    <!-- Se utiliza Tailwind CSS para un diseño moderno y responsivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Se carga la librería Pyodide, que permite ejecutar Python directamente en el navegador -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+    <style>
+        /* Estilos personalizados para el indicador de carga */
+        .loader {
+            border-top-color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans flex items-center justify-center min-h-screen p-4">
+
+    <div class="container mx-auto p-4 lg:p-8 bg-white rounded-xl shadow-lg max-w-4xl w-full">
+
+        <!-- Encabezado con Logo y Título del Curso -->
+        <div class="flex items-center flex-wrap gap-4 mb-6 border-b pb-4">
+            <!-- Reemplaza la URL de abajo con el enlace a la imagen del logo de tu universidad -->
+            <img src="logo_santoto.png" alt="Logo Universidad Santo Tomás" class="h-20">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Programación para Ciencia de Datos</h1>
+                <p class="text-gray-600">Ejercicio 2: Cálculo de Dosis Pediátricas (Avanzado)</p>
+            </div>
+        </div>
+
+        <!-- Sección de configuración inicial -->
+        <div id="setup-section">
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Evaluador: Cálculo de Dosis Pediátricas</h2>
+            <p class="text-gray-600 mb-6">Ingresa tu correo institucional para generar tu ejercicio personalizado.</p>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <input type="email" id="identificacion" placeholder="tu.correo@usantotomas.edu.co" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                <button id="generate-btn" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
+                    Generar Ejercicio
+                </button>
+            </div>
+            <p id="email-error" class="text-red-600 text-sm mt-2 hidden">Correo no válido. Debe ser @usantotomas.edu.co, @usta.edu.co o @ustadistancia.edu.co.</p>
+        </div>
+
+        <!-- Sección del ejercicio (inicialmente oculta) -->
+        <div id="exercise-section" class="hidden">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Tu Misión</h2>
+            <div id="enunciado" class="prose max-w-none bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+                <!-- El enunciado del problema se insertará aquí dinámicamente -->
+            </div>
+
+            <h3 class="text-xl font-semibold text-gray-700 mb-2">Editor de Código</h3>
+            <p class="text-gray-500 mb-4">Completa la función `calcular_dosis_pacientes` en el siguiente editor.</p>
+            <div id="editor" class="border border-gray-300 rounded-lg h-80"></div>
+            
+            <!-- Botones de acción -->
+            <div class="flex flex-wrap gap-4 mt-6">
+                <button id="run-btn" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
+                    Probar Código
+                </button>
+                <button id="submit-btn" class="bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Calificar y Enviar
+                </button>
+            </div>
+
+            <!-- Área de resultados y feedback -->
+            <div id="output-container" class="mt-6">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">Resultados</h3>
+                <pre id="output" class="bg-gray-900 text-white p-4 rounded-lg font-mono text-sm whitespace-pre-wrap min-h-[100px]"></pre>
+            </div>
+        </div>
+
+        <!-- Indicador de carga global -->
+        <div id="loader" class="hidden fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex flex-col items-center justify-center z-50">
+            <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-32 w-32"></div>
+            <p id="loader-text" class="text-white text-xl mt-4">Cargando Python en tu navegador...</p>
+        </div>
+    </div>
+
+    <!-- Se carga la librería ACE Editor para tener un editor de código con resaltado de sintaxis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <script>
+        // --- CONFIGURACIÓN ---
+        const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyU_65n94ndvoaKJ9oV7NO-IgzsKVPqFysao4O9buGincZxCuCGLalAELNbbghTNN9f4A/exec';
+
+        // --- REFERENCIAS A ELEMENTOS DEL DOM ---
+        const setupSection = document.getElementById('setup-section');
+        const exerciseSection = document.getElementById('exercise-section');
+        const generateBtn = document.getElementById('generate-btn');
+        const runBtn = document.getElementById('run-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        const identificacionInput = document.getElementById('identificacion');
+        const enunciadoDiv = document.getElementById('enunciado');
+        const outputPre = document.getElementById('output');
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loader-text');
+        const emailError = document.getElementById('email-error');
+        
+        let pyodide = null;
+        let editor = null;
+        let exerciseParams = {};
+
+        // --- INICIALIZACIÓN ---
+        
+        function setupEditor() {
+            editor = ace.edit("editor");
+            editor.setTheme("ace/theme/tomorrow");
+            editor.session.setMode("ace/mode/python");
+            editor.setValue(`# Escribe tu solución aquí.
+# La función recibe una lista de diccionarios.
+def calcular_dosis_pacientes(lista_pacientes, medicamento, dosis_base_mg_kg):
+    # Tu código empieza aquí. ¡Recuerda usar try-except!
+    # Y no olvides las reglas especiales para el Ibuprofeno.
+    
+    return [] # Debe devolver una lista de strings
+`);
+            editor.clearSelection();
+        }
+
+        async function loadPyodideEnvironment() {
+            showLoader("Cargando Python en tu navegador...");
+            try {
+                pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.1/full/"
+                });
+                outputPre.textContent = "Python cargado. ¡Listo para generar tu ejercicio!";
+            } catch (error) {
+                outputPre.textContent = `Error al cargar Pyodide: ${error}`;
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // --- LÓGICA DEL EJERCICIO ---
+
+        function seededRandom(seed) {
+            let hash = 0;
+            if (seed.length === 0) return Math.random();
+            for (let i = 0; i < seed.length; i++) {
+                const char = seed.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash |= 0; 
+            }
+            const x = Math.sin(hash++) * 10000;
+            return x - Math.floor(x);
+        }
+
+        function generateExerciseParams(id) {
+            const rand = () => seededRandom(id + (exerciseParams.medicamento || ''));
+            
+            const medicamentos = [
+                { nombre: 'Paracetamol', dosis_mg_kg: 15 },
+                { nombre: 'Ibuprofeno', dosis_mg_kg: 10 } // Dosis base para el tramo inicial
+            ];
+            
+            const medSeleccionado = medicamentos[Math.floor(rand() * medicamentos.length)];
+            exerciseParams.medicamento = medSeleccionado.nombre;
+            exerciseParams.dosis_base_mg_kg = medSeleccionado.dosis_mg_kg;
+
+            let pacientes = [];
+            const num_records = 15 + Math.floor(rand() * 10);
+
+            for(let i=0; i < num_records; i++) {
+                const patientId = `P${300 + i}`;
+                let record = { id: patientId };
+                const errorType = rand();
+                
+                if (errorType < 0.15) { // Sin llave de peso
+                    record.edad_meses = 12 + Math.floor(rand() * 120);
+                } else if (errorType < 0.30) { // Peso no numérico
+                    record.edad_meses = 12 + Math.floor(rand() * 120);
+                    record.peso_kg = 'dieciseis';
+                } else if (errorType < 0.40) { // Edad no numérica
+                     record.peso_kg = 10 + rand() * 30;
+                     record.edad_meses = 'ocho';
+                } else if (errorType < 0.50) { // Paciente demasiado joven para Ibuprofeno
+                     record.peso_kg = 5 + rand(); // Peso bajo
+                     record.edad_meses = 3 + Math.floor(rand() * 2); // Menor de 6 meses
+                }
+                else { // Registro válido
+                    record.edad_meses = 6 + Math.floor(rand() * 144);
+                    record.peso_kg = 8 + rand() * 40;
+                }
+                pacientes.push(record);
+            }
+
+            exerciseParams.lista_pacientes = pacientes;
+            return exerciseParams;
+        }
+
+        function displayExercise(id) {
+            const params = generateExerciseParams(id);
+            const ejemplo_pacientes = [
+                { id: 'P301', edad_meses: 24, peso_kg: 12.5 }, // Válido
+                { id: 'P302', edad_meses: 4 }, // Demasiado joven y sin peso
+                { id: 'P303', edad_meses: 36, peso_kg: 'quince' }, // Peso no numérico
+                { id: 'P304', edad_meses: 48, peso_kg: -15.0 }, // Peso inválido
+                { id: 'P305', peso_kg: 20.0 }, // Sin edad
+            ];
+            const pacientesStr = JSON.stringify(ejemplo_pacientes, null, 2);
+
+            let reglasCalculo = ``;
+            if (params.medicamento === 'Ibuprofeno') {
+                reglasCalculo = `
+                    <p>El medicamento a calcular es <strong>Ibuprofeno</strong>. Su dosificación es compleja y se basa en el peso del paciente. Para este medicamento, debes <strong>ignorar el argumento <code>dosis_base_mg_kg</code></strong> y aplicar las siguientes reglas:</p>
+                    <ul class="list-disc list-inside">
+                        <li><strong>Restricción de edad:</strong> No se debe administrar a niños <strong>menores de 6 meses</strong>.</li>
+                        <li><strong>Dosificación por tramos de peso:</strong>
+                            <ul class="list-disc list-inside ml-6">
+                                <li>Para pacientes de 6 kg hasta 11.9 kg: <strong>10 mg/kg</strong>.</li>
+                                <li>Para pacientes de 12 kg hasta 17.9 kg: <strong>8 mg/kg</strong>.</li>
+                                <li>Para pacientes de 18 kg o más: una dosis fija máxima de <strong>400 mg</strong>.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                `;
+            } else { // Para Paracetamol y otros
+                 reglasCalculo = `
+                    <p>El medicamento a calcular es <strong>${params.medicamento}</strong>. Su dosificación es lineal y depende directamente del peso del paciente. Para este cálculo, debes usar el argumento <code>dosis_base_mg_kg</code>.</p>
+                     <ul class="list-disc list-inside">
+                        <li>La dosis se calcula como: <code>dosis = peso_kg * dosis_base_mg_kg</code>.</li>
+                        <li>Para este ejercicio, el valor de <code>dosis_base_mg_kg</code> es <strong>${params.dosis_base_mg_kg} mg por kg</strong>.</li>
+                    </ul>
+                 `;
+            }
+
+
+            enunciadoDiv.innerHTML = `
+                <p>Tu sistema de gestión te ha entregado una lista de fichas de pacientes pediátricos. La lista está corrupta y contiene datos faltantes o incorrectos.</p>
+                <p>Tu tarea es crear una función <code>calcular_dosis_pacientes(lista_pacientes, medicamento, dosis_base_mg_kg)</code> que calcule la dosis para cada paciente válido, siguiendo reglas médicas específicas. El argumento <code>medicamento</code> siempre será un string.</p>
+                <p>La lista de pacientes (<code>lista_pacientes</code>) contiene diccionarios con errores como estos:</p>
+                <pre class="bg-gray-900 text-yellow-300 p-3 rounded-lg font-mono text-sm whitespace-pre-wrap break-all"><code>${pacientesStr}</code></pre>
+                <h4 class="font-bold text-lg mt-4">Reglas de Cálculo de Dosis</h4>
+                ${reglasCalculo}
+                <h4 class="font-bold text-lg mt-4">Reglas Generales de Validación de Datos</h4>
+                 <ul class="list-disc list-inside">
+                    <li>Debes usar un bloque <strong><code>try-except</code></strong> para ignorar cualquier diccionario que cause errores al acceder a las llaves <code>'peso_kg'</code> o <code>'edad_meses'</code>, o al convertir sus valores a números.</li>
+                    <li>Debes ignorar cualquier paciente con un peso o edad no positivos (cero o negativos).</li>
+                    <li>Tu función debe devolver una <strong>lista de strings</strong> con el formato: <code>"Paciente [ID]: Dosis de [Medicamento] - [Dosis calculada] mg"</code> para cada paciente válido.</li>
+                </ul>
+            `;
+            setupSection.classList.add('hidden');
+            exerciseSection.classList.remove('hidden');
+        }
+
+        async function runCode(code) {
+            if (!pyodide) return;
+            showLoader("Ejecutando tu código...");
+            try {
+                await pyodide.runPythonAsync(code);
+                outputPre.textContent = "Función 'calcular_dosis_pacientes' definida. Ahora puedes calificarla.";
+            } catch (error) {
+                outputPre.textContent = `Error en tu código:\n${error}`;
+            } finally { hideLoader(); }
+        }
+        
+        // --- LÓGICA DE EVALUACIÓN Y ENVÍO ---
+        
+        async function checkTryExceptUsage(code) {
+             if (!pyodide) return false;
+             try {
+                const checkCode = `
+import ast
+def has_try_except(code_string):
+    try:
+        tree = ast.parse(code_string)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Try):
+                return True
+        return False
+    except SyntaxError: return False
+`;
+                await pyodide.runPythonAsync(checkCode);
+                return pyodide.globals.get('has_try_except')(code);
+             } catch(e) { return false; }
+        }
+
+        async function evaluateSolution(code) {
+            if (!pyodide) return { score: 0, feedback: "Error: Pyodide no está cargado." };
+            
+            showLoader("Calificando tu solución...");
+            let score = 0;
+            let feedback = "";
+            const totalTests = 10;
+            let hints = new Set();
+
+            try {
+                await pyodide.runPythonAsync(code);
+                
+                const professorSolution = `
+def calcular_dosis_pacientes_solucion(lista_pacientes, medicamento, dosis_base_mg_kg):
+    resultados = []
+    for paciente in lista_pacientes:
+        try:
+            paciente_id = paciente.get('id', 'Desconocido')
+            peso = float(paciente['peso_kg'])
+            edad_meses = int(paciente['edad_meses'])
+            
+            if peso <= 0 or edad_meses <= 0:
+                continue
+
+            dosis = 0
+            
+            if medicamento == 'Ibuprofeno':
+                if edad_meses < 6:
+                    continue # Restricción de edad
+                
+                if 6 <= peso < 12:
+                    dosis = peso * 10
+                elif 12 <= peso < 18:
+                    dosis = peso * 8
+                elif peso >= 18:
+                    dosis = 400 # Dosis máxima
+                else:
+                    continue # Peso demasiado bajo
+            else: # Para Paracetamol y otros
+                dosis = peso * dosis_base_mg_kg
+
+            if dosis > 0:
+                resultados.append(f"Paciente {paciente_id}: Dosis de {medicamento} - {dosis:.1f} mg")
+
+        except (KeyError, ValueError, TypeError):
+            continue
+            
+    return resultados
+`;
+                await pyodide.runPythonAsync(professorSolution);
+                
+                for (let i = 0; i < totalTests; i++) {
+                    const studentId = identificacionInput.value + i;
+                    const params = generateExerciseParams(studentId);
+                    const pyListaPacientes = pyodide.toPy(params.lista_pacientes);
+
+                    const pyProxySol = pyodide.globals.get('calcular_dosis_pacientes_solucion')(pyListaPacientes, params.medicamento, params.dosis_base_mg_kg);
+                    const expectedResult = pyProxySol.toJs();
+                    pyProxySol.destroy();
+
+                    feedback += `--- CASO DE PRUEBA ${i + 1} (${params.medicamento}) ---\n`;
+                    
+                    try {
+                        const pyProxyUser = pyodide.globals.get('calcular_dosis_pacientes')(pyListaPacientes, params.medicamento, params.dosis_base_mg_kg);
+                        const userResult = pyProxyUser.toJs();
+                        pyProxyUser.destroy();
+                        
+                        const isCorrect = JSON.stringify(userResult.sort()) === JSON.stringify(expectedResult.sort());
+                        
+                        if (isCorrect) {
+                            feedback += "  - ¡Prueba superada con éxito!\n";
+                            score += 1;
+                        } else {
+                            feedback += "  - Falló. El resultado no coincide con el esperado.\n";
+                            hints.add("Revisa las reglas de dosificación, especialmente los tramos de peso y las restricciones de edad para el Ibuprofeno. Asegúrate de manejar todos los casos de error.");
+                        }
+                    } catch(e) {
+                         feedback += `  - Tu código generó un error en este caso de prueba: ${e}\n`;
+                    }
+                    pyListaPacientes.destroy();
+                }
+            } catch (error) {
+                feedback = `No se pudo calificar. Error de sintaxis en tu función: ${error}`;
+            }
+            
+            const finalScore = (score / totalTests) * 5.0;
+
+            if (hints.size > 0) {
+                feedback += "\n--- PISTAS PARA MEJORAR ---\n";
+                hints.forEach(hint => feedback += `* ${hint}\n`);
+            }
+
+            const usedTryExcept = await checkTryExceptUsage(code);
+            feedback += "\n--- ANÁLISIS DE CÓDIGO ---\n";
+            if(usedTryExcept) {
+                feedback += "* ¡Excelente! Has utilizado un bloque try-except. Esta es una práctica fundamental para trabajar con datos del mundo real.\n";
+            } else {
+                feedback += "* Observación: Tu código no parece usar un bloque try-except. Para que tu función sea robusta contra datos corruptos es crucial usarlo.\n";
+            }
+
+            feedback += `\n--- CALIFICACIÓN FINAL: ${finalScore.toFixed(2)} / 5.0 ---\n`;
+            
+            hideLoader();
+            return { score: finalScore, feedback: feedback };
+        }
+        
+        async function submitResults(score, feedback, code) {
+            const identificacion = identificacionInput.value;
+            if (GOOGLE_SHEET_URL === 'URL_DE_APPS_SCRIPT_AQUI') {
+                 outputPre.textContent = feedback + "\n\nAVISO: La URL de Google Sheet no ha sido configurada. Los resultados se muestran aquí pero no se han enviado.";
+                 return;
+            }
+
+            showLoader("Enviando tus resultados...");
+            try {
+                await fetch(GOOGLE_SHEET_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', 
+                    body: JSON.stringify({ identificacion, nota: score, feedback, codigo: code }),
+                });
+                outputPre.textContent = feedback + "\n\n¡Resultados enviados con éxito! Tu profesor ha recibido tu calificación.";
+            } catch (error) {
+                outputPre.textContent = feedback + `\n\nERROR AL ENVIAR: No se pudo contactar al servidor de calificaciones. Error: ${error}`;
+            } finally { hideLoader(); }
+        }
+        
+        // --- MANEJADORES DE EVENTOS ---
+        generateBtn.addEventListener('click', async () => {
+            const email = identificacionInput.value.trim().toLowerCase();
+            const validDomains = ['@usantotomas.edu.co', '@usta.edu.co', '@ustadistancia.edu.co'];
+            const isValidEmail = validDomains.some(domain => email.endsWith(domain));
+
+            if (!isValidEmail) {
+                emailError.textContent = "Correo no válido. Debe ser @usantotomas.edu.co, @usta.edu.co o @ustadistancia.edu.co.";
+                emailError.classList.remove('hidden');
+                identificacionInput.classList.add('border-red-500');
+                return;
+            }
+            
+            emailError.classList.add('hidden');
+            identificacionInput.classList.remove('border-red-500');
+            
+            if (GOOGLE_SHEET_URL === 'URL_DE_APPS_SCRIPT_AQUI') {
+                 outputPre.textContent = "AVISO: La URL de Google Sheet no ha sido configurada. No se pueden verificar los intentos.";
+                 displayExercise(email);
+                 return;
+            }
+
+            showLoader("Verificando intentos...");
+
+            try {
+                const checkUrl = `${GOOGLE_SHEET_URL}?email=${encodeURIComponent(email)}`;
+                const response = await fetch(checkUrl);
+                const result = await response.json();
+                
+                if (result.status === 'error') {
+                    throw new Error(result.message);
+                }
+
+                const attempts = result.attempts || 0;
+                const MAX_ATTEMPTS = 5;
+
+                if (attempts >= MAX_ATTEMPTS) {
+                    emailError.textContent = `Has alcanzado el límite de ${MAX_ATTEMPTS} intentos para este ejercicio.`;
+                    emailError.classList.remove('hidden');
+                    generateBtn.disabled = true;
+                    identificacionInput.disabled = true;
+                    generateBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                    hideLoader();
+                    return;
+                }
+
+                displayExercise(email);
+
+            } catch (error) {
+                emailError.textContent = `Error al verificar intentos: ${error.message}. Inténtalo de nuevo.`;
+                emailError.classList.remove('hidden');
+            } finally {
+                hideLoader();
+            }
+        });
+
+        runBtn.addEventListener('click', () => runCode(editor.getValue()));
+        submitBtn.addEventListener('click', async () => {
+            const code = editor.getValue();
+            const result = await evaluateSolution(code);
+            outputPre.textContent = result.feedback;
+            await submitResults(result.score, result.feedback, code);
+        });
+
+        // --- FUNCIONES UTILITARIAS ---
+        function showLoader(text) {
+            loaderText.textContent = text;
+            loader.classList.remove('hidden');
+        }
+        function hideLoader() { loader.classList.add('hidden'); }
+
+        // --- INICIO ---
+        window.onload = () => {
+            setupEditor();
+            loadPyodideEnvironment();
+        };
+    </script>
+</body>
+</html>
+
