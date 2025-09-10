@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Evaluador Interactivo de Python - Dosis Pediátricas (Avanzado)</title>
+    <title>Evaluador Interactivo de Python - Dosis Pediátricas (Final)</title>
     <!-- Se utiliza Tailwind CSS para un diseño moderno y responsivo -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Se carga la librería Pyodide, que permite ejecutar Python directamente en el navegador -->
@@ -29,7 +29,7 @@
             <img src="logo_santoto.png" alt="Logo Universidad Santo Tomás" class="h-20">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">Programación para Ciencia de Datos</h1>
-                <p class="text-gray-600">Ejercicio 2: Cálculo de Dosis Pediátricas (Avanzado)</p>
+                <p class="text-gray-600">Ejercicio 2: Cálculo de Dosis Pediátricas</p>
             </div>
         </div>
 
@@ -156,7 +156,7 @@ def calcular_dosis_pacientes(lista_pacientes, medicamento, dosis_base_mg_kg):
             
             const medicamentos = [
                 { nombre: 'Paracetamol', dosis_mg_kg: 15 },
-                { nombre: 'Ibuprofeno', dosis_mg_kg: 10 } // Dosis base para el tramo inicial
+                { nombre: 'Ibuprofeno', dosis_mg_kg: 10 }
             ];
             
             const medSeleccionado = medicamentos[Math.floor(rand() * medicamentos.length)];
@@ -171,19 +171,18 @@ def calcular_dosis_pacientes(lista_pacientes, medicamento, dosis_base_mg_kg):
                 let record = { id: patientId };
                 const errorType = rand();
                 
-                if (errorType < 0.15) { // Sin llave de peso
+                if (errorType < 0.15) {
                     record.edad_meses = 12 + Math.floor(rand() * 120);
-                } else if (errorType < 0.30) { // Peso no numérico
+                } else if (errorType < 0.30) {
                     record.edad_meses = 12 + Math.floor(rand() * 120);
                     record.peso_kg = 'dieciseis';
-                } else if (errorType < 0.40) { // Edad no numérica
+                } else if (errorType < 0.40) {
                      record.peso_kg = 10 + rand() * 30;
                      record.edad_meses = 'ocho';
-                } else if (errorType < 0.50) { // Paciente demasiado joven para Ibuprofeno
-                     record.peso_kg = 5 + rand(); // Peso bajo
-                     record.edad_meses = 3 + Math.floor(rand() * 2); // Menor de 6 meses
-                }
-                else { // Registro válido
+                } else if (errorType < 0.50) {
+                     record.peso_kg = 5 + rand();
+                     record.edad_meses = 3 + Math.floor(rand() * 2);
+                } else {
                     record.edad_meses = 6 + Math.floor(rand() * 144);
                     record.peso_kg = 8 + rand() * 40;
                 }
@@ -197,47 +196,60 @@ def calcular_dosis_pacientes(lista_pacientes, medicamento, dosis_base_mg_kg):
         function displayExercise(id) {
             const params = generateExerciseParams(id);
             const ejemplo_pacientes = [
-                { id: 'P301', edad_meses: 24, peso_kg: 12.5 }, // Válido
-                { id: 'P302', edad_meses: 4 }, // Demasiado joven y sin peso
+                { id: 'P301', edad_meses: 24, peso_kg: 12.5 }, // Válido para Ibuprofeno
+                { id: 'P302', edad_meses: 4, peso_kg: 6.0 },   // Demasiado joven para Ibuprofeno
                 { id: 'P303', edad_meses: 36, peso_kg: 'quince' }, // Peso no numérico
                 { id: 'P304', edad_meses: 48, peso_kg: -15.0 }, // Peso inválido
                 { id: 'P305', peso_kg: 20.0 }, // Sin edad
+                { id: 'P306', edad_meses: 12, peso_kg: 9.5 } // Válido para Ibuprofeno
             ];
             const pacientesStr = JSON.stringify(ejemplo_pacientes, null, 2);
-
-            let reglasCalculo = ``;
-            if (params.medicamento === 'Ibuprofeno') {
-                reglasCalculo = `
-                    <p>El medicamento a calcular es <strong>Ibuprofeno</strong>. Su dosificación es compleja y se basa en el peso del paciente. Para este medicamento, debes <strong>ignorar el argumento <code>dosis_base_mg_kg</code></strong> y aplicar las siguientes reglas:</p>
-                    <ul class="list-disc list-inside">
-                        <li><strong>Restricción de edad:</strong> No se debe administrar a niños <strong>menores de 6 meses</strong>.</li>
-                        <li><strong>Dosificación por tramos de peso:</strong>
-                            <ul class="list-disc list-inside ml-6">
-                                <li>Para pacientes de 6 kg hasta 11.9 kg: <strong>10 mg/kg</strong>.</li>
-                                <li>Para pacientes de 12 kg hasta 17.9 kg: <strong>8 mg/kg</strong>.</li>
-                                <li>Para pacientes de 18 kg o más: una dosis fija máxima de <strong>400 mg</strong>.</li>
-                            </ul>
-                        </li>
-                    </ul>
-                `;
-            } else { // Para Paracetamol y otros
-                 reglasCalculo = `
-                    <p>El medicamento a calcular es <strong>${params.medicamento}</strong>. Su dosificación es lineal y depende directamente del peso del paciente. Para este cálculo, debes usar el argumento <code>dosis_base_mg_kg</code>.</p>
-                     <ul class="list-disc list-inside">
-                        <li>La dosis se calcula como: <code>dosis = peso_kg * dosis_base_mg_kg</code>.</li>
-                        <li>Para este ejercicio, el valor de <code>dosis_base_mg_kg</code> es <strong>${params.dosis_base_mg_kg} mg por kg</strong>.</li>
-                    </ul>
-                 `;
-            }
-
+            // El resultado esperado para la lista de ejemplo con Ibuprofeno
+            const resultadoEjemploStr = JSON.stringify([
+                "Paciente P301: Dosis de Ibuprofeno - 100.0 mg",
+                "Paciente P306: Dosis de Ibuprofeno - 95.0 mg"
+            ], null, 2);
 
             enunciadoDiv.innerHTML = `
                 <p>Tu sistema de gestión te ha entregado una lista de fichas de pacientes pediátricos. La lista está corrupta y contiene datos faltantes o incorrectos.</p>
-                <p>Tu tarea es crear una función <code>calcular_dosis_pacientes(lista_pacientes, medicamento, dosis_base_mg_kg)</code> que calcule la dosis para cada paciente válido, siguiendo reglas médicas específicas. El argumento <code>medicamento</code> siempre será un string.</p>
-                <p>La lista de pacientes (<code>lista_pacientes</code>) contiene diccionarios con errores como estos:</p>
+                <p>Tu tarea es crear una función <code>calcular_dosis_pacientes(lista_pacientes, medicamento, dosis_base_mg_kg)</code> que calcule la dosis para cada paciente válido. El argumento <code>medicamento</code> siempre será un string.</p>
+                
+                <h4 class="font-bold text-lg mt-4">Ejemplo de Datos de Entrada</h4>
+                <p>La lista de pacientes (<code>lista_pacientes</code>) puede contener diccionarios con errores como estos:</p>
                 <pre class="bg-gray-900 text-yellow-300 p-3 rounded-lg font-mono text-sm whitespace-pre-wrap break-all"><code>${pacientesStr}</code></pre>
+                
+                <h4 class="font-bold text-lg mt-4">Ejemplo de Resultado Esperado</h4>
+                <p>Si tu función procesara la lista anterior con el medicamento 'Ibuprofeno', el resultado correcto sería:</p>
+                <pre class="bg-gray-900 text-green-300 p-3 rounded-lg font-mono text-sm whitespace-pre-wrap break-all"><code>${resultadoEjemploStr}</code></pre>
+                
                 <h4 class="font-bold text-lg mt-4">Reglas de Cálculo de Dosis</h4>
-                ${reglasCalculo}
+                <p>La lógica de cálculo depende del string del <code>medicamento</code>. Tu función debe estar preparada para manejar ambos casos:</p>
+                
+                <div class="mt-2 p-3 border-l-4 border-blue-500 bg-blue-50">
+                    <h5 class="font-bold">Si el medicamento es 'Ibuprofeno':</h5>
+                    <p>La dosificación es compleja. Debes <strong>ignorar el argumento <code>dosis_base_mg_kg</code></strong> y aplicar estas reglas:</p>
+                    <ul class="list-disc list-inside mt-1">
+                        <li><strong>Restricción de edad:</strong> No administrar a niños <strong>menores de 6 meses</strong>.</li>
+                        <li><strong>Dosificación por tramos de peso:</strong>
+                            <ul class="list-disc list-inside ml-5">
+                                <li>De 6 kg a 11.9 kg: <strong>10 mg/kg</strong>.</li>
+                                <li>De 12 kg a 17.9 kg: <strong>8 mg/kg</strong>.</li>
+                                <li>De 18 kg o más: dosis fija máxima de <strong>400 mg</strong>.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="mt-3 p-3 border-l-4 border-green-500 bg-green-50">
+                    <h5 class="font-bold">Si el medicamento es 'Paracetamol' (o cualquier otro):</h5>
+                    <p>La dosificación es lineal. Debes usar el argumento <code>dosis_base_mg_kg</code>:</p>
+                     <ul class="list-disc list-inside mt-1">
+                        <li>La dosis se calcula como: <code>dosis = peso_kg * dosis_base_mg_kg</code>.</li>
+                    </ul>
+                </div>
+
+                <p class="mt-4"><strong>Para tu ejercicio aleatorio, el medicamento a usar es '${params.medicamento}' y la dosis base (si aplica) es de ${params.dosis_base_mg_kg} mg/kg.</strong></p>
+                
                 <h4 class="font-bold text-lg mt-4">Reglas Generales de Validación de Datos</h4>
                  <ul class="list-disc list-inside">
                     <li>Debes usar un bloque <strong><code>try-except</code></strong> para ignorar cualquier diccionario que cause errores al acceder a las llaves <code>'peso_kg'</code> o <code>'edad_meses'</code>, o al convertir sus valores a números.</li>
@@ -309,17 +321,17 @@ def calcular_dosis_pacientes_solucion(lista_pacientes, medicamento, dosis_base_m
             
             if medicamento == 'Ibuprofeno':
                 if edad_meses < 6:
-                    continue # Restricción de edad
+                    continue
                 
                 if 6 <= peso < 12:
                     dosis = peso * 10
                 elif 12 <= peso < 18:
                     dosis = peso * 8
                 elif peso >= 18:
-                    dosis = 400 # Dosis máxima
+                    dosis = 400
                 else:
-                    continue # Peso demasiado bajo
-            else: # Para Paracetamol y otros
+                    continue
+            else:
                 dosis = peso * dosis_base_mg_kg
 
             if dosis > 0:
@@ -355,7 +367,7 @@ def calcular_dosis_pacientes_solucion(lista_pacientes, medicamento, dosis_base_m
                             score += 1;
                         } else {
                             feedback += "  - Falló. El resultado no coincide con el esperado.\n";
-                            hints.add("Revisa las reglas de dosificación, especialmente los tramos de peso y las restricciones de edad para el Ibuprofeno. Asegúrate de manejar todos los casos de error.");
+                            hints.add("Revisa las reglas de dosificación para AMBOS medicamentos y las condiciones de validación (edad, peso). El formato del string de salida debe ser exacto.");
                         }
                     } catch(e) {
                          feedback += `  - Tu código generó un error en este caso de prueba: ${e}\n`;
@@ -486,4 +498,3 @@ def calcular_dosis_pacientes_solucion(lista_pacientes, medicamento, dosis_base_m
     </script>
 </body>
 </html>
-
