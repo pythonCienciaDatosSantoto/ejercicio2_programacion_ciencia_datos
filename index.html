@@ -453,7 +453,7 @@ def calcular_dosis_pacientes_solucion(lista_pacientes, medicamento, dosis_base_m
                 }
 
                 const attempts = result.attempts || 0;
-                const MAX_ATTEMPTS = 5;
+                const MAX_ATTEMPTS = 10;
 
                 if (attempts >= MAX_ATTEMPTS) {
                     emailError.textContent = `Has alcanzado el límite de ${MAX_ATTEMPTS} intentos para este ejercicio.`;
@@ -498,5 +498,6 @@ def calcular_dosis_pacientes_solucion(lista_pacientes, medicamento, dosis_base_m
     </script>
 </body>
 </html>
+
 
 
